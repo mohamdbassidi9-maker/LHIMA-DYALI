@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Heart of Love</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;height:100%;background:#000;font-family:Arial,sans-serif}
+body{display:flex;flex-direction:column;align-items:center;overflow:hidden}
+#c{flex:1;width:100%;min-height:0;cursor:pointer}
+p{margin:0 0 10px;font-size:12px;color:#888}
+#mus{cursor:pointer;color:#ff7cc8;text-shadow:0 0 8px #ff2d78;font-size:14px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<p><label id="mus">🎵 Choose song<input id="f" type="file" accept="audio/*" hidden></label> · <span id="status">Music starts automatically · Click the heart to replay</span></p>
+<audio id="audio" src="Ravyn_Lenae_-_Love_Me_Not.mp3" autoplay loop></audio>
+<script>
+const P=["I love you","Je t’aime","Te amo","Ti amo","Ich liebe dich","Eu te amo","Ana kanbghik","أحبك","Hob","حب","我爱你","愛してる","사랑해","Я тебя люблю","Σ’ αγαπώ","Seni seviyorum","Ik hou van je","Jag älskar dig","Jeg elsker deg","Kocham cię","Szeretlek","Rakastan sinua","Miluji tě","Te iubesc","Mahal kita","Aku cinta kamu","Anh yêu em","Nakupenda","Ndiyakuthanda","Volim te","אני אוהב אותך","मैं तुमसे प्यार करता हूँ","AMOUR","LOVE","Amor","Liebe","Amore","Mi amas vin","Ég elska þig","Maite zaitut","Ngiyakuthanda","Te quiero","Aloha au iā ʻoe","Mahal kita","Tá grá agam duit","Σ’ αγαπάω","Ya lyublyu tebya","Bi chamd hairtai","Seni sevirem","Мен сені сүйемін"];
+const cv=document.getElementById("c"),ctx=cv.getContext("2d");
+const W=400,H=380,CX=200,CY=170;
+// heart mask
+const m=document.createElement("canvas");m.width=W;m.height=H;const g=m.getContext("2d");
+g.beginPath();
+for(let i=0;i<=200;i++){const t=i/200*6.2832,x=16*Math.pow(Math.sin(t),3),y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+ i?g.lineTo(CX+x*11.5,CY-y*11.5+8):g.moveTo(CX+x*11.5,CY-y*11.5+8)}
+g.closePath();
+const gr=g.createRadialGradient(150,110,10,CX,CY,200);
+gr.addColorStop(0,"#ff5d73");gr.addColorStop(.45,"#e0143c");gr.addColorStop(1,"#6e0018");
+g.fillStyle=gr;g.fill();
+const px=g.getImageData(0,0,W,H).data;
+const inM=(x,y)=>x>=0&&x<W&&y>=0&&y<H&&px[((y|0)*W+(x|0))*4+3]>200;
+const rgb=(x,y)=>{const i=((y|0)*W+(x|0))*4;return[px[i],px[i+1],px[i+2]]};
+// place words
+const words=[];
+for(let y=8;y<H;y+=13){
+ let x=0;
+ while(x<W){
+  if(!inM(x,y)){x+=2;continue}
+  let ok=false;
+  for(let k=0;k<14&&!ok;k++){
+   const s=10+Math.random()*4,t=P[Math.random()*P.length|0];
+   g.font=`bold ${s}px Arial,sans-serif`;const w=g.measureText(t).width;
+   if(inM(x,y)&&inM(x+w,y)&&inM(x+w/2,y)&&inM(x+w/2,y-4)&&inM(x+w/2,y+4)&&inM(x,y-4)&&inM(x+w,y+4)){
+    const c=rgb(x+w/2,y),f=.8+Math.random()*.5;
+    words.push({t,s,x:x+w/2,y,c:`rgb(${Math.min(255,c[0]*f)|0},${Math.min(255,c[1]*f+(Math.random()<.12?90:0))|0},${Math.min(255,c[2]*f+(Math.random()<.12?90:0))|0})`,
+     key:Math.abs(Math.atan2(x+w/2-CX,y-CY))+Math.random()*.25,ox:(Math.random()-.5)*90,oy:(Math.random()-.5)*90});
+    x+=w+5;ok=true;
+   }
+  }
+  if(!ok)x+=4;
+ }
+}
+words.sort((a,b)=>a.key-b.key);
+words.forEach(w=>{const r=Math.random(),n=r<.7?["#ffd6e8","#ff2d78"]:r<.88?["#ffe0f4","#ff5ccf"]:r<.95?["#ffffff","#ff9bd0"]:["#d6fbff","#00e5ff"];w.core=n[0];w.glow=n[1];w.fl=Math.random()<.08?Math.random()*6:-1});
+const N=words.length,DUR=6.5;
+words.forEach((w,i)=>w.at=i/N*DUR);
+let S=1,ox=0,oy=0,t0=performance.now();
+function fit(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;
+ S=Math.min(cv.width/W,cv.height/H)*.95;ox=(cv.width-W*S)/2;oy=(cv.height-H*S)/2}
+function frame(now){
+ const t=(now-t0)/1000;ctx.clearRect(0,0,cv.width,cv.height);ctx.textAlign="center";ctx.textBaseline="middle";
+ const beat=t>DUR+.8?1+.025*Math.pow(Math.sin((t-DUR)*2.6),8)*1.5:1;
+ for(const w of words){
+  const k=(t-w.at)/.7;if(k<=0)continue;
+  const e=k>=1?1:1-Math.pow(1-k,3);
+  const x=CX+(w.x-CX+w.ox*(1-e))*beat,y=CY+(w.y-CY+w.oy*(1-e))*beat;
+  ctx.globalAlpha=Math.min(1,k*1.5);
+  ctx.font=`bold ${w.s*S*(1+(1-e)*.8)*(beat>1?beat:1)}px Arial,sans-serif`;
+  ctx.fillStyle=k<1?"#fff":w.core;ctx.shadowColor=w.glow;ctx.shadowBlur=(k<1?18:8)*S;
+  if(w.fl>=0&&k>=1&&Math.sin(t*9+w.fl*5)>.88)ctx.globalAlpha=.25;
+  ctx.fillText(w.t,ox+x*S,oy+y*S);
+ }
+ ctx.shadowBlur=0;ctx.globalAlpha=1;requestAnimationFrame(frame);
+}
+const audio=document.getElementById("audio"),status=document.getElementById("status");
+let uploadedUrl;
+function playSong(restart=false){
+ if(restart)audio.currentTime=0;
+ audio.play().then(()=>{status.textContent="Music playing · Click the heart to replay"}).catch(err=>{
+  status.textContent=err.name==="NotAllowedError"?"Tap the heart to start music":"Could not play this audio file";
+ });
+}
+audio.play().catch(err=>{
+ if(err.name==="NotAllowedError")status.textContent="Tap the heart to start music";
+ else status.textContent="Could not play the music";
+});
+document.getElementById("f").addEventListener("change",e=>{
+ const f=e.target.files[0];if(!f)return;
+ const nextUrl=URL.createObjectURL(f);
+ audio.src=nextUrl;
+ if(uploadedUrl)URL.revokeObjectURL(uploadedUrl);
+ uploadedUrl=nextUrl;
+ playSong(true);
+});
+cv.addEventListener("click",()=>{t0=performance.now();playSong(true)});
+addEventListener("resize",fit);fit();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
